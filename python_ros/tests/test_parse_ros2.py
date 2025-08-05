@@ -1,5 +1,3 @@
-import pytest
-
 from python_ros.message_definition import MessageDefinition, MessageDefinitionField
 from python_ros.rosmsg.parse import parse
 
@@ -22,7 +20,10 @@ def test_resolves_unqualified_names():
             name=None,
             definitions=[
                 MessageDefinitionField(
-                    type="geometry_msgs/Point", name="points", is_array=True, is_complex=True
+                    type="geometry_msgs/Point",
+                    name="points",
+                    is_array=True,
+                    is_complex=True,
                 )
             ],
         ),
@@ -68,7 +69,9 @@ def test_parses_variable_length_array():
     assert parse("string[] names", ros2=True) == [
         MessageDefinition(
             name=None,
-            definitions=[MessageDefinitionField(type="string", name="names", is_array=True)],
+            definitions=[
+                MessageDefinitionField(type="string", name="names", is_array=True)
+            ],
         )
     ]
 
@@ -78,7 +81,9 @@ def test_parses_fixed_length_array():
         MessageDefinition(
             name=None,
             definitions=[
-                MessageDefinitionField(type="string", name="names", is_array=True, array_length=3)
+                MessageDefinitionField(
+                    type="string", name="names", is_array=True, array_length=3
+                )
             ],
         )
     ]
@@ -126,12 +131,48 @@ def test_returns_constants():
         MessageDefinition(
             name=None,
             definitions=[
-                MessageDefinitionField(type="uint32", name="FOO", is_constant=True, value=55, value_text="55"),
-                MessageDefinitionField(type="int32", name="BAR", is_constant=True, value=-11, value_text="-11"),
-                MessageDefinitionField(type="float32", name="BAZ", is_constant=True, value=-32.25, value_text="-32.25"),
-                MessageDefinitionField(type="bool", name="SOME_BOOLEAN", is_constant=True, value=False, value_text="0"),
-                MessageDefinitionField(type="string", name="FOO_STR", is_constant=True, value="Foo", value_text="Foo"),
-                MessageDefinitionField(type="int64", name="A", is_constant=True, value=1, value_text="0000000000000001"),
+                MessageDefinitionField(
+                    type="uint32",
+                    name="FOO",
+                    is_constant=True,
+                    value=55,
+                    value_text="55",
+                ),
+                MessageDefinitionField(
+                    type="int32",
+                    name="BAR",
+                    is_constant=True,
+                    value=-11,
+                    value_text="-11",
+                ),
+                MessageDefinitionField(
+                    type="float32",
+                    name="BAZ",
+                    is_constant=True,
+                    value=-32.25,
+                    value_text="-32.25",
+                ),
+                MessageDefinitionField(
+                    type="bool",
+                    name="SOME_BOOLEAN",
+                    is_constant=True,
+                    value=False,
+                    value_text="0",
+                ),
+                MessageDefinitionField(
+                    type="string",
+                    name="FOO_STR",
+                    is_constant=True,
+                    value="Foo",
+                    value_text="Foo",
+                ),
+                MessageDefinitionField(
+                    type="int64",
+                    name="A",
+                    is_constant=True,
+                    value=1,
+                    value_text="0000000000000001",
+                ),
             ],
         )
     ]
@@ -143,8 +184,20 @@ def test_handles_python_boolean_values():
         MessageDefinition(
             name=None,
             definitions=[
-                MessageDefinitionField(type="bool", name="ALIVE", is_constant=True, value=True, value_text="True"),
-                MessageDefinitionField(type="bool", name="DEAD", is_constant=True, value=False, value_text="False"),
+                MessageDefinitionField(
+                    type="bool",
+                    name="ALIVE",
+                    is_constant=True,
+                    value=True,
+                    value_text="True",
+                ),
+                MessageDefinitionField(
+                    type="bool",
+                    name="DEAD",
+                    is_constant=True,
+                    value=False,
+                    value_text="False",
+                ),
             ],
         )
     ]
@@ -152,11 +205,16 @@ def test_handles_python_boolean_values():
 
 def test_handles_type_names_for_fields():
     assert parse("time time", ros2=True) == [
-        MessageDefinition(name=None, definitions=[MessageDefinitionField(type="time", name="time")])
+        MessageDefinition(
+            name=None, definitions=[MessageDefinitionField(type="time", name="time")]
+        )
     ]
 
     assert parse("time time_ref", ros2=True) == [
-        MessageDefinition(name=None, definitions=[MessageDefinitionField(type="time", name="time_ref")])
+        MessageDefinition(
+            name=None,
+            definitions=[MessageDefinitionField(type="time", name="time_ref")],
+        )
     ]
 
     message_definition = (

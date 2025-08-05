@@ -55,7 +55,9 @@ ROS2_BUILTIN_TYPES = {
 
 TYPE = r"(?P<type>[a-zA-Z0-9_/]+)"
 STRING_BOUND = r"(?:<=(?P<stringBound>\d+))"
-ARRAY_BOUND = r"(?:(?P<unboundedArray>\[\])|\[(?P<arrayLength>\d+)\]|\[<=(?P<arrayBound>\d+)\])"
+ARRAY_BOUND = (
+    r"(?:(?P<unboundedArray>\[\])|\[(?P<arrayLength>\d+)\]|\[<=(?P<arrayBound>\d+)\])"
+)
 NAME = r"(?P<name>[a-zA-Z0-9_]+)"
 QUOTED_STRING = r"'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\""
 COMMENT_TERMINATED_LITERAL = (
@@ -69,7 +71,11 @@ DEFAULT_VALUE_ARRAY = (
     r"\[(?:" + ARRAY_TERMINATED_LITERAL + r",)*" + ARRAY_TERMINATED_LITERAL + r"?\]"
 )
 DEFAULT_VALUE = (
-    r"(?P<defaultValue>" + DEFAULT_VALUE_ARRAY + r"|" + COMMENT_TERMINATED_LITERAL + r")"
+    r"(?P<defaultValue>"
+    + DEFAULT_VALUE_ARRAY
+    + r"|"
+    + COMMENT_TERMINATED_LITERAL
+    + r")"
 )
 COMMENT = r"(?:#.*)"
 DEFINITION_LINE_REGEX = re.compile(
@@ -122,7 +128,9 @@ def _parse_string_literal(maybe_quoted: str) -> str:
     for q in ("'", '"'):
         if s.startswith(q):
             if not s.endswith(q):
-                raise ValueError(f"Expected terminating {q} in string literal: {maybe_quoted}")
+                raise ValueError(
+                    f"Expected terminating {q} in string literal: {maybe_quoted}"
+                )
             quote = q
             s = s[len(q) : -len(q)]
             break
@@ -269,15 +277,16 @@ def _build_ros2_type(lines: List[str]) -> MessageDefinition:
             array_upper_bound=int(array_bound) if array_bound else None,
             upper_bound=int(string_bound) if string_bound else None,
             is_constant=constant_value is not None,
-            default_value=
-                _parse_array_literal(type_name, default_value.strip())
-                if default_value is not None and is_array
-                else (_parse_primitive_literal(type_name, default_value.strip())
-                      if default_value is not None else None),
-            value=
-                _parse_primitive_literal(type_name, constant_value.strip())
-                if constant_value is not None
-                else None,
+            default_value=_parse_array_literal(type_name, default_value.strip())
+            if default_value is not None and is_array
+            else (
+                _parse_primitive_literal(type_name, default_value.strip())
+                if default_value is not None
+                else None
+            ),
+            value=_parse_primitive_literal(type_name, constant_value.strip())
+            if constant_value is not None
+            else None,
             value_text=constant_value.strip() if constant_value is not None else None,
         )
         definitions.append(field)
@@ -294,11 +303,17 @@ def parse(
         if line.startswith("#"):
             continue
         if line.startswith("=="):
-            types.append(_build_ros2_type(definition_lines) if ros2 else _build_type(definition_lines))
+            types.append(
+                _build_ros2_type(definition_lines)
+                if ros2
+                else _build_type(definition_lines)
+            )
             definition_lines = []
         else:
             definition_lines.append(line)
-    types.append(_build_ros2_type(definition_lines) if ros2 else _build_type(definition_lines))
+    types.append(
+        _build_ros2_type(definition_lines) if ros2 else _build_type(definition_lines)
+    )
 
     unique: List[MessageDefinition] = []
     for t in types:
