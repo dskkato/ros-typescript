@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rosmsg"
+version = "0.1.0"
+description = "Python implementation of rosmsg tools"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pre-commit",
+]
+
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 88
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203"]
+per-file-ignores = ["python_ros/tests/test_md5.py: E501"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+
+[tool.setuptools.packages.find]
+where = ["python_ros"]
