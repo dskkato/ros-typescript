@@ -10,7 +10,10 @@ class MessageDefinitionField:
     name: str
     is_array: bool = False
     array_length: Optional[int] = None
+    array_upper_bound: Optional[int] = None
+    upper_bound: Optional[int] = None
     is_constant: bool = False
+    default_value: Any = None
     value: Any = None
     value_text: Optional[str] = None
     is_complex: bool = False
