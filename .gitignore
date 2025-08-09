@@ -5,3 +5,8 @@ dist/
 node_modules/
 
 .yarn
+
+.venv
+build
+*.egg-info
+__pycache__

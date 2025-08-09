@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import List, Optional
 
-from ..message_definition import (
+from python_ros.message_definition import (
     MessageDefinition,
     MessageDefinitionField,
     is_msg_def_equal,
@@ -271,23 +271,27 @@ def _build_ros2_type(lines: List[str]) -> MessageDefinition:
         field = MessageDefinitionField(
             name=name,
             type=type_name,
-            is_complex=is_complex,
-            is_array=is_array,
-            array_length=int(array_length) if array_length else None,
-            array_upper_bound=int(array_bound) if array_bound else None,
-            upper_bound=int(string_bound) if string_bound else None,
-            is_constant=constant_value is not None,
-            default_value=_parse_array_literal(type_name, default_value.strip())
-            if default_value is not None and is_array
-            else (
-                _parse_primitive_literal(type_name, default_value.strip())
-                if default_value is not None
+            isComplex=is_complex,
+            isArray=is_array,
+            arrayLength=int(array_length) if array_length else None,
+            arrayUpperBound=int(array_bound) if array_bound else None,
+            upperBound=int(string_bound) if string_bound else None,
+            isConstant=constant_value is not None,
+            defaultValue=(
+                _parse_array_literal(type_name, default_value.strip())
+                if default_value is not None and is_array
+                else (
+                    _parse_primitive_literal(type_name, default_value.strip())
+                    if default_value is not None
+                    else None
+                )
+            ),
+            value=(
+                _parse_primitive_literal(type_name, constant_value.strip())
+                if constant_value is not None
                 else None
             ),
-            value=_parse_primitive_literal(type_name, constant_value.strip())
-            if constant_value is not None
-            else None,
-            value_text=constant_value.strip() if constant_value is not None else None,
+            valueText=constant_value.strip() if constant_value is not None else None,
         )
         definitions.append(field)
     return MessageDefinition(name=complex_type_name, definitions=definitions)
@@ -330,7 +334,7 @@ def fixup_types(types: List[MessageDefinition]) -> None:
     for msg in types:
         namespace = "/".join(msg.name.split("/")[:-1]) if msg.name else None
         for field in msg.definitions:
-            if field.is_complex:
+            if field.isComplex:
                 found = _find_type_by_name(types, field.type, namespace)
                 if found.name is None:
                     raise ValueError(f"Missing type definition for {field.type}")
@@ -364,15 +368,15 @@ def _build_type(lines: List[str]) -> MessageDefinition:
             length = array_match.group("len")
             if length:
                 array_length = int(length)
-        is_complex = not _is_builtin(type_name)
+        isComplex = not _is_builtin(type_name)
         field = MessageDefinitionField(
             type=type_name,
             name=name,
-            is_array=is_array,
-            array_length=array_length,
-            is_constant=value_text is not None,
-            value_text=value_text.strip() if value_text is not None else None,
-            is_complex=is_complex,
+            isArray=is_array,
+            arrayLength=array_length,
+            isConstant=value_text is not None,
+            valueText=value_text.strip() if value_text is not None else None,
+            isComplex=isComplex,
         )
         definitions.append(field)
     return MessageDefinition(name=complex_type_name, definitions=definitions)
