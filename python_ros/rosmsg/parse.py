@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import List, Optional
 
-from python_ros.message_definition import (
+from message_definition import (
     MessageDefinition,
     MessageDefinitionField,
     is_msg_def_equal,

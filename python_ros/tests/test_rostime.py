@@ -1,6 +1,6 @@
 import datetime
 
-import python_ros.rostime as rostime
+import rostime as rostime
 
 
 def test_is_time():
