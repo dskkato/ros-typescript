@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from typing import Dict, List
 
-from python_ros.message_definition import MessageDefinition
+from message_definition import MessageDefinition
 
 BUILTIN_TYPES = {
     "int8",

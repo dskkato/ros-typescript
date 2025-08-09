@@ -1,4 +1,4 @@
-from python_ros.rosmsg import parse, stringify
+from rosmsg import parse, stringify
 
 
 def test_round_trip_definition():

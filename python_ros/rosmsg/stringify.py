@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, List
 
-from python_ros.message_definition import MessageDefinition
+from message_definition import MessageDefinition
 
 
 def _stringify_value(value: Any) -> str:
