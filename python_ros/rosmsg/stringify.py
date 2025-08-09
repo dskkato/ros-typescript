@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, List
 
-from ..message_definition import MessageDefinition
+from python_ros.message_definition import MessageDefinition
 
 
 def _stringify_value(value: Any) -> str:
@@ -25,9 +25,9 @@ def stringify_default_value(value: Any) -> str:
 def stringify(msg_defs: List[MessageDefinition]) -> str:
     lines: List[str] = []
     for i, msg_def in enumerate(msg_defs):
-        constants = [d for d in msg_def.definitions if getattr(d, "is_constant", False)]
+        constants = [d for d in msg_def.definitions if getattr(d, "isConstant", False)]
         variables = [
-            d for d in msg_def.definitions if not getattr(d, "is_constant", False)
+            d for d in msg_def.definitions if not getattr(d, "isConstant", False)
         ]
 
         if i > 0:
@@ -36,8 +36,8 @@ def stringify(msg_defs: List[MessageDefinition]) -> str:
             lines.append(f"MSG: {msg_def.name or ''}")
         for const in constants:
             value = (
-                const.value_text
-                if const.value_text is not None
+                const.valueText
+                if const.valueText is not None
                 else _stringify_value(const.value)
             )
             lines.append(f"{const.type} {const.name} = {value}")
@@ -46,20 +46,20 @@ def stringify(msg_defs: List[MessageDefinition]) -> str:
                 lines.append("")
             for var in variables:
                 upper_bound = (
-                    f"<={var.upper_bound}" if var.upper_bound is not None else ""
+                    f"<={var.upperBound}" if var.upperBound is not None else ""
                 )
-                if var.array_length is not None:
-                    array_len = str(var.array_length)
-                elif var.array_upper_bound is not None:
-                    array_len = f"<={var.array_upper_bound}"
+                if var.arrayLength is not None:
+                    array_len = str(var.arrayLength)
+                elif var.arrayUpperBound is not None:
+                    array_len = f"<={var.arrayUpperBound}"
                 else:
                     array_len = ""
                 array_suffix = (
-                    f"[{array_len}]" if getattr(var, "is_array", False) else ""
+                    f"[{array_len}]" if getattr(var, "isArray", False) else ""
                 )
                 default_value = (
-                    f" {stringify_default_value(var.default_value)}"
-                    if var.default_value is not None
+                    f" {stringify_default_value(var.defaultValue)}"
+                    if var.defaultValue is not None
                     else ""
                 )
                 lines.append(

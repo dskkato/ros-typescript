@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from typing import Dict, List
 
-from ..message_definition import MessageDefinition
+from python_ros.message_definition import MessageDefinition
 
 BUILTIN_TYPES = {
     "int8",
@@ -38,16 +38,16 @@ def md5(msg_defs: List[MessageDefinition]) -> str:
 def _compute_md5(
     msg_def: MessageDefinition, sub_defs: Dict[str, MessageDefinition]
 ) -> str:
-    constants = [d for d in msg_def.definitions if d.is_constant]
-    variables = [d for d in msg_def.definitions if not d.is_constant]
+    constants = [d for d in msg_def.definitions if d.isConstant]
+    variables = [d for d in msg_def.definitions if not d.isConstant]
     lines: List[str] = []
     for d in constants:
-        value_text = d.value_text if d.value_text is not None else str(d.value)
-        lines.append(f"{d.type} {d.name}={value_text}")
+        valueText = d.valueText if d.valueText is not None else str(d.value)
+        lines.append(f"{d.type} {d.name}={valueText}")
     for d in variables:
         if _is_builtin(d.type):
-            array_len = str(d.array_length) if d.array_length is not None else ""
-            array = f"[{array_len}]" if d.is_array else ""
+            array_len = str(d.arrayLength) if d.arrayLength is not None else ""
+            array = f"[{array_len}]" if d.isArray else ""
             lines.append(f"{d.type}{array} {d.name}")
         else:
             sub = sub_defs.get(d.type)

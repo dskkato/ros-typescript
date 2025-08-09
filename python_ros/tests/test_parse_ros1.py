@@ -21,8 +21,8 @@ def test_resolves_unqualified_names():
                 MessageDefinitionField(
                     type="geometry_msgs/Point",
                     name="points",
-                    is_array=True,
-                    is_complex=True,
+                    isArray=True,
+                    isComplex=True,
                 )
             ],
         ),
@@ -69,7 +69,7 @@ def test_parses_variable_length_array():
         MessageDefinition(
             name=None,
             definitions=[
-                MessageDefinitionField(type="string", name="names", is_array=True)
+                MessageDefinitionField(type="string", name="names", isArray=True)
             ],
         )
     ]
@@ -81,7 +81,7 @@ def test_parses_fixed_length_array():
             name=None,
             definitions=[
                 MessageDefinitionField(
-                    type="string", name="names", is_array=True, array_length=3
+                    type="string", name="names", isArray=True, arrayLength=3
                 )
             ],
         )
@@ -103,7 +103,7 @@ def test_parses_nested_complex_types():
             definitions=[
                 MessageDefinitionField(type="string", name="username"),
                 MessageDefinitionField(
-                    type="custom_type/Account", name="account", is_complex=True
+                    type="custom_type/Account", name="account", isComplex=True
                 ),
             ],
         ),
@@ -131,25 +131,25 @@ def test_returns_constants():
             name=None,
             definitions=[
                 MessageDefinitionField(
-                    type="uint32", name="foo", is_constant=True, value_text="55"
+                    type="uint32", name="foo", isConstant=True, valueText="55"
                 ),
                 MessageDefinitionField(
-                    type="int32", name="bar", is_constant=True, value_text="-11"
+                    type="int32", name="bar", isConstant=True, valueText="-11"
                 ),
                 MessageDefinitionField(
-                    type="float32", name="baz", is_constant=True, value_text="-32.25"
+                    type="float32", name="baz", isConstant=True, valueText="-32.25"
                 ),
                 MessageDefinitionField(
-                    type="bool", name="someBoolean", is_constant=True, value_text="0"
+                    type="bool", name="someBoolean", isConstant=True, valueText="0"
                 ),
                 MessageDefinitionField(
-                    type="string", name="fooStr", is_constant=True, value_text="Foo"
+                    type="string", name="fooStr", isConstant=True, valueText="Foo"
                 ),
                 MessageDefinitionField(
                     type="int64",
                     name="A",
-                    is_constant=True,
-                    value_text="0000000000000001",
+                    isConstant=True,
+                    valueText="0000000000000001",
                 ),
             ],
         )
@@ -163,10 +163,10 @@ def test_handles_python_boolean_values():
             name=None,
             definitions=[
                 MessageDefinitionField(
-                    type="bool", name="Alive", is_constant=True, value_text="True"
+                    type="bool", name="Alive", isConstant=True, valueText="True"
                 ),
                 MessageDefinitionField(
-                    type="bool", name="Dead", is_constant=True, value_text="False"
+                    type="bool", name="Dead", isConstant=True, valueText="False"
                 ),
             ],
         )
@@ -195,7 +195,7 @@ def test_handles_type_names_for_fields():
         MessageDefinition(
             name=None,
             definitions=[
-                MessageDefinitionField(type="custom/true", name="true", is_complex=True)
+                MessageDefinitionField(type="custom/true", name="true", isComplex=True)
             ],
         ),
         MessageDefinition(
@@ -213,7 +213,7 @@ def test_allows_numbers_in_package_names():
         MessageDefinition(
             name=None,
             definitions=[
-                MessageDefinitionField(type="abc1/Foo2", name="value0", is_complex=True)
+                MessageDefinitionField(type="abc1/Foo2", name="value0", isComplex=True)
             ],
         ),
         MessageDefinition(
