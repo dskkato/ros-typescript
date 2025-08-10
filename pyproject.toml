@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Python implementation of rosmsg tools"
 readme = "README.md"
 requires-python = ">=3.10"
+dependencies = ["cdr@git+https://github.com/dskkato/cdr.git"]
 
 [project.optional-dependencies]
 dev = [
@@ -30,4 +31,4 @@ per-file-ignores = ["python_ros/tests/test_md5.py: E501"]
 addopts = "-q"
 
 [tool.setuptools.packages.find]
-where = ["python_ros"]
+where = ["python_ros", "cdr/python_cdr"]
