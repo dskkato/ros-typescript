@@ -1,4 +1,4 @@
-from .MessageReader import MessageReader
+from .MessageReader import MessageReader, MessageReaderOptions
 from .MessageWriter import MessageWriter
 
-__all__ = ["MessageReader", "MessageWriter"]
+__all__ = ["MessageReader", "MessageReaderOptions", "MessageWriter"]
