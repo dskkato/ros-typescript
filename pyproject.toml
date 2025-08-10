@@ -8,7 +8,10 @@ version = "0.1.0"
 description = "Python implementation of rosmsg tools"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["cdr@git+https://github.com/dskkato/cdr.git"]
+dependencies = [
+    "cdr@git+https://github.com/dskkato/cdr.git",
+    "omgidl @ git+https://github.com/dskkato/omgidl.git@main",
+]
 
 [project.optional-dependencies]
 dev = [
