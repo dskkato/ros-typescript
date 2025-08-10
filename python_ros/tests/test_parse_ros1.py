@@ -1,5 +1,5 @@
-from python_ros.message_definition import MessageDefinition, MessageDefinitionField
-from python_ros.rosmsg.parse import fixup_types, parse
+from message_definition import MessageDefinition, MessageDefinitionField
+from rosmsg.parse import fixup_types, parse
 
 
 def test_parses_single_field():

@@ -1,4 +1,4 @@
-from python_ros.rosmsg import md5, parse
+from rosmsg import md5, parse
 
 MD5_TESTS = [
     ("std_msgs/Bool", "bool data", "8b94c1b53db61fb6aed406028ad6332a"),
