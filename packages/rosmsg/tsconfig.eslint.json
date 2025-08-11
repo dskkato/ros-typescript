@@ -1,0 +1,5 @@
+// -*- jsonc -*-
+{
+  "extends": "./tsconfig.json",
+  "include": ["./src/**/*", "./bench/**/*"]
+}

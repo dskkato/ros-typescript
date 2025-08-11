@@ -84,4 +84,12 @@ module.exports = tseslint.config(
       },
     },
   },
+  {
+    files: ["packages/rosmsg/**"],
+    languageOptions: {
+      parserOptions: {
+        project: "packages/rosmsg/tsconfig.eslint.json",
+      },
+    },
+  },
 );
