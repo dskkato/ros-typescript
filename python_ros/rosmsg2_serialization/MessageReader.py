@@ -233,7 +233,7 @@ def _union_case_field(
     """Return the field for ``discriminator`` from ``defn``."""
 
     for case in defn.cases:
-        if discriminator in case.predicates:
+        if case.predicates and discriminator in case.predicates:
             return case.type
 
     return defn.defaultCase
