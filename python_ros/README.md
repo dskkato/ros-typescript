@@ -28,3 +28,20 @@ Run the unit tests with `pytest`:
 ```bash
 pytest
 ```
+
+## Benchmarking
+
+Run the benchmark suite with [`pytest-benchmark`](https://pytest-benchmark.readthedocs.io/):
+
+```bash
+python -m python_ros.bench.benny
+```
+
+Example output:
+
+```
+test_new_reader[int8 array]                                2.6280 (1.00)         52.4570 (1.0)          3.1941 (1.02)
+test_new_reader[std_msgs/Header]                           2.6290 (1.00)        648.8670 (12.37)        3.2809 (1.05)
+...
+15 passed in 8.45s
+```
