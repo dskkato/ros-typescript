@@ -486,13 +486,13 @@ def test_union_parsing() -> None:
     w.uint8(0)
     w.int32(42)
     buffer = w.data
-    assert reader.read_message(buffer) == {"num": 42}
+    assert reader.read_message(buffer) == {"discriminator": 0, "num": 42}
 
     w = CdrWriter()
     w.uint8(1)
     w.string("hello")
     buffer = w.data
-    assert reader.read_message(buffer) == {"text": "hello"}
+    assert reader.read_message(buffer) == {"discriminator": 1, "text": "hello"}
 
 
 def test_nested_union_parsing() -> None:
@@ -510,7 +510,7 @@ def test_nested_union_parsing() -> None:
     w.uint8(1)
     w.string("hi")
     buffer = w.data
-    assert reader.read_message(buffer) == {"value": {"text": "hi"}}
+    assert reader.read_message(buffer) == {"value": {"discriminator": 1, "text": "hi"}}
 
 
 def test_enum_union_parsing() -> None:
@@ -528,13 +528,13 @@ def test_enum_union_parsing() -> None:
     w.uint32(0)
     w.int32(99)
     buffer = w.data
-    assert reader.read_message(buffer) == {"num": 99}
+    assert reader.read_message(buffer) == {"discriminator": 0, "num": 99}
 
     w = CdrWriter()
     w.uint32(1)
     w.string("enum")
     buffer = w.data
-    assert reader.read_message(buffer) == {"text": "enum"}
+    assert reader.read_message(buffer) == {"discriminator": 1, "text": "enum"}
 
 
 def test_nested_enum_union_parsing() -> None:
@@ -553,7 +553,9 @@ def test_nested_enum_union_parsing() -> None:
     w.uint32(1)
     w.string("nested")
     buffer = w.data
-    assert reader.read_message(buffer) == {"value": {"text": "nested"}}
+    assert reader.read_message(buffer) == {
+        "value": {"discriminator": 1, "text": "nested"}
+    }
 
 
 def test_union_default_case_uint8() -> None:
@@ -570,7 +572,7 @@ def test_union_default_case_uint8() -> None:
     w.uint8(1)
     w.string("fallback")
     buffer = w.data
-    assert reader.read_message(buffer) == {"text": "fallback"}
+    assert reader.read_message(buffer) == {"discriminator": 1, "text": "fallback"}
 
 
 def test_enum_union_default_case() -> None:
@@ -588,7 +590,45 @@ def test_enum_union_default_case() -> None:
     w.uint32(1)
     w.string("enum default")
     buffer = w.data
-    assert reader.read_message(buffer) == {"text": "enum default"}
+    assert reader.read_message(buffer) == {"discriminator": 1, "text": "enum default"}
+
+
+def test_nested_module_enum_union() -> None:
+    idl = """module test {
+  module t2_test_msgs {
+
+  enum FooEnum {
+    ENUMERATOR1,
+    ENUMERATOR2
+  };
+
+  union FooUnion switch(FooEnum) {
+  case ENUMERATOR1:
+    int32 int_value;
+  case ENUMERATOR2:
+    string<32> string_value;
+  };
+
+  module msg {
+     @verbatim (language="comment", text=
+     "This is a comment about the Bar message")
+     struct Bar {
+       FooUnion union_value;  // member is a union discriminated by FooEnum
+       };
+    };
+  };
+
+};"""
+    defs = parse_ros2idl(idl)
+    reader = MessageReader(defs)
+
+    w = CdrWriter()
+    w.uint32(1)
+    w.string("Hello!")
+    buffer = w.data
+    assert reader.read_message(buffer) == {
+        "union_value": {"discriminator": 1, "string_value": "Hello!"}
+    }
 
 
 @pytest.mark.parametrize("msg_def", ["wstring field", "wstring[] field"])

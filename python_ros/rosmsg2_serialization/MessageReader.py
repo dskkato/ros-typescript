@@ -37,8 +37,18 @@ class MessageReader:
         # ros2idl modules could have constant modules before the root struct used
         # to decode message
         root_definition = next(
-            (d for d in definitions if not _is_constant_module(d)), None
+            (
+                d
+                for d in definitions
+                if d.aggregatedKind == AggregatedKind.STRUCT
+                and not _is_constant_module(d)
+            ),
+            None,
         )
+        if root_definition is None:
+            root_definition = next(
+                (d for d in definitions if not _is_constant_module(d)), None
+            )
         if root_definition is None:
             raise ValueError("MessageReader initialized with no root MessageDefinition")
         self._root_definition = root_definition
@@ -71,6 +81,7 @@ class MessageReader:
                     f"{definition.switchType} for union discriminant"
                 )
             discr = switch_deser(reader)
+            msg["discriminator"] = discr
 
             selected: MessageDefinitionField | None = None
             default: MessageDefinitionField | None = None
