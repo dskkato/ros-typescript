@@ -6,6 +6,8 @@ from ros2idl_parser import parse_ros2idl
 from rosmsg2_serialization import MessageReader, MessageReaderOptions
 from rosmsg.parse import parse
 
+from cdr import CdrWriter
+
 
 def _serialize_string(string: str) -> bytes:
     data = string.encode("utf8")
@@ -477,3 +479,42 @@ def test_wstring_unsupported(msg_def: str) -> None:
     reader = MessageReader(defs)
     with pytest.raises(RuntimeError, match="wstring is implementation-defined"):
         reader.read_message(buffer)
+
+
+def test_union_parsing() -> None:
+    from python_ros.ros2idl_parser import parse_ros2idl as local_parse_ros2idl
+
+    msg_def = """module test {
+  union MyUnion switch (uint8) {
+    case 0: int32 i;
+    case 1: float32 f;
+    default: string s;
+  };
+  struct MyMsg {
+    MyUnion value;
+  };
+};
+"""
+    defs = local_parse_ros2idl(msg_def)
+    reader = MessageReader(defs)
+
+    w = CdrWriter()
+    w.reset_origin()
+    w.reset_origin()
+    w.uint8(0)
+    w.int32(42)
+    assert reader.read_message(w.data) == {"value": {"i": 42}}
+
+    w = CdrWriter()
+    w.reset_origin()
+    w.reset_origin()
+    w.uint8(1)
+    w.float32(1.5)
+    assert reader.read_message(w.data) == {"value": {"f": pytest.approx(1.5)}}
+
+    w = CdrWriter()
+    w.reset_origin()
+    w.reset_origin()
+    w.uint8(3)
+    w.string("hello")
+    assert reader.read_message(w.data) == {"value": {"s": "hello"}}

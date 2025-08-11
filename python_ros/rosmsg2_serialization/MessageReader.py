@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Mapping, Sequence
 
 from message_definition import MessageDefinition, MessageDefinitionField
+from omgidl_parser import IDLMessageDefinition, IDLUnionDefinition
 
 from cdr import CdrReader
 
@@ -22,13 +23,13 @@ class MessageReaderOptions:
 
 
 class MessageReader:
-    _root_definition: List[MessageDefinitionField]
-    _definitions: Mapping[str, List[MessageDefinitionField]]
+    _root_definition: Any
+    _definitions: Mapping[str, Any]
     _use_ros1_time: bool
 
     def __init__(
         self,
-        definitions: Sequence[MessageDefinition],
+        definitions: Sequence[MessageDefinition | IDLMessageDefinition],
         options: MessageReaderOptions | None = None,
     ) -> None:
         opts = options or MessageReaderOptions()
@@ -37,17 +38,41 @@ class MessageReader:
         # ros2idl modules could have constant modules before the root struct used
         # to decode message
         root_definition = next(
-            (d for d in definitions if not _is_constant_module(d)), None
+            (
+                d
+                for d in definitions
+                if hasattr(d, "definitions") and not _is_constant_module(d)
+            ),
+            None,
         )
         if root_definition is None:
+            root_definition = next(
+                (d for d in definitions if isinstance(d, IDLUnionDefinition)), None
+            )
+        if root_definition is None:
             raise ValueError("MessageReader initialized with no root MessageDefinition")
-        self._root_definition = list(root_definition.definitions)
-        self._definitions = {d.name or "": list(d.definitions) for d in definitions}
+        if hasattr(root_definition, "definitions"):
+            self._root_definition = list(root_definition.definitions)
+        else:
+            self._root_definition = root_definition
+        defs: Dict[str, Any] = {}
+        for d in definitions:
+            name = getattr(d, "name", "") or ""
+            if isinstance(d, IDLUnionDefinition):
+                defs[name] = d
+            else:
+                defs[name] = list(d.definitions)
+        self._definitions = defs
         self._use_ros1_time = time_type == "sec,nsec"
 
     def read_message(self, buffer: bytes | bytearray | memoryview) -> Any:
         reader = CdrReader(buffer)
-        return self._read_complex_type(self._root_definition, reader)
+        return self._read_definition(self._root_definition, reader)
+
+    def _read_definition(self, definition: Any, reader: CdrReader) -> Any:
+        if isinstance(definition, IDLUnionDefinition):
+            return self._read_union(definition, reader)
+        return self._read_complex_type(definition, reader)
 
     def _read_complex_type(
         self, definition: Sequence[MessageDefinitionField], reader: CdrReader
@@ -73,10 +98,10 @@ class MessageReader:
                     array_length = field.arrayLength or reader.sequence_length()
                     array = []
                     for _ in range(array_length):
-                        array.append(self._read_complex_type(nested_definition, reader))
+                        array.append(self._read_definition(nested_definition, reader))
                     msg[field.name] = array
                 else:
-                    msg[field.name] = self._read_complex_type(nested_definition, reader)
+                    msg[field.name] = self._read_definition(nested_definition, reader)
             else:
                 if field.isArray is True:
                     deser_map = (
@@ -102,9 +127,67 @@ class MessageReader:
 
         return msg
 
+    def _read_union(
+        self, defn: IDLUnionDefinition, reader: CdrReader
+    ) -> Dict[str, Any]:
+        deser_map = _ros1_deserializers if self._use_ros1_time else _deserializers
+        deser = deser_map.get(defn.switchType)
+        if deser is None:
+            raise ValueError(f"Unrecognized primitive type {defn.switchType}")
+        switch_val = deser(reader)
 
-def _is_constant_module(defn: MessageDefinition) -> bool:
-    return len(defn.definitions) > 0 and all(f.isConstant for f in defn.definitions)
+        field_def: MessageDefinitionField | None = None
+        for case in defn.cases:
+            if switch_val in case.predicates:
+                field_def = case.type
+                break
+        if field_def is None:
+            field_def = defn.defaultCase
+        if field_def is None:
+            return {}
+
+        value: Any
+        if field_def.isComplex:
+            nested_definition = self._definitions.get(field_def.type)
+            if nested_definition is None:
+                raise ValueError(f"Unrecognized complex type {field_def.type}")
+            if field_def.isArray is True:
+                array_length = field_def.arrayLength or reader.sequence_length()
+                value = [
+                    self._read_definition(nested_definition, reader)
+                    for _ in range(array_length)
+                ]
+            else:
+                value = self._read_definition(nested_definition, reader)
+        else:
+            if field_def.isArray is True:
+                deser_arr_map = (
+                    _ros1_typed_array_deserializers
+                    if self._use_ros1_time
+                    else _typed_array_deserializers
+                )
+                deser_arr = deser_arr_map.get(field_def.type)
+                if deser_arr is None:
+                    raise ValueError(
+                        f"Unrecognized primitive array type {field_def.type}[]"
+                    )
+                array_length = field_def.arrayLength or reader.sequence_length()
+                value = deser_arr(reader, array_length)
+            else:
+                deser_prim = deser_map.get(field_def.type)
+                if deser_prim is None:
+                    raise ValueError(f"Unrecognized primitive type {field_def.type}")
+                value = deser_prim(reader)
+
+        return {field_def.name: value}
+
+
+def _is_constant_module(defn: Any) -> bool:
+    return (
+        hasattr(defn, "definitions")
+        and len(defn.definitions) > 0
+        and all(f.isConstant for f in defn.definitions)
+    )
 
 
 def _read_bool_array(reader: CdrReader, count: int) -> List[bool]:
