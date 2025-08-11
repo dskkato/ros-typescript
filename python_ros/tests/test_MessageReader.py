@@ -6,6 +6,8 @@ from ros2idl_parser import parse_ros2idl
 from rosmsg2_serialization import MessageReader, MessageReaderOptions
 from rosmsg.parse import parse
 
+from cdr import CdrWriter
+
 
 def _serialize_string(string: str) -> bytes:
     data = string.encode("utf8")
@@ -468,6 +470,125 @@ def test_ros2idl_root_selection() -> None:
     reader = MessageReader(defs)
     read = reader.read_message(buffer)
     assert read == {"status": 2}
+
+
+def test_union_parsing() -> None:
+    idl = """module test {
+  union IntOrString switch(uint8) {
+    case 0: int32 num;
+    case 1: string text;
+  };
+};"""
+    defs = parse_ros2idl(idl)
+    reader = MessageReader(defs)
+
+    w = CdrWriter()
+    w.uint8(0)
+    w.int32(42)
+    buffer = w.data
+    assert reader.read_message(buffer) == {"num": 42}
+
+    w = CdrWriter()
+    w.uint8(1)
+    w.string("hello")
+    buffer = w.data
+    assert reader.read_message(buffer) == {"text": "hello"}
+
+
+def test_nested_union_parsing() -> None:
+    idl = """module test {
+  struct Wrapper { IntOrString value; };
+  union IntOrString switch(uint8) {
+    case 0: int32 num;
+    case 1: string text;
+  };
+};"""
+    defs = parse_ros2idl(idl)
+    reader = MessageReader(defs)
+
+    w = CdrWriter()
+    w.uint8(1)
+    w.string("hi")
+    buffer = w.data
+    assert reader.read_message(buffer) == {"value": {"text": "hi"}}
+
+
+def test_enum_union_parsing() -> None:
+    idl = """module test {
+  enum Switch { NUM, TEXT };
+  union IntOrString switch(Switch) {
+    case NUM: int32 num;
+    case TEXT: string text;
+  };
+};"""
+    defs = parse_ros2idl(idl)
+    reader = MessageReader(defs)
+
+    w = CdrWriter()
+    w.uint32(0)
+    w.int32(99)
+    buffer = w.data
+    assert reader.read_message(buffer) == {"num": 99}
+
+    w = CdrWriter()
+    w.uint32(1)
+    w.string("enum")
+    buffer = w.data
+    assert reader.read_message(buffer) == {"text": "enum"}
+
+
+def test_nested_enum_union_parsing() -> None:
+    idl = """module test {
+  enum Switch { NUM, TEXT };
+  struct Wrapper { IntOrString value; };
+  union IntOrString switch(Switch) {
+    case NUM: int32 num;
+    case TEXT: string text;
+  };
+};"""
+    defs = parse_ros2idl(idl)
+    reader = MessageReader(defs)
+
+    w = CdrWriter()
+    w.uint32(1)
+    w.string("nested")
+    buffer = w.data
+    assert reader.read_message(buffer) == {"value": {"text": "nested"}}
+
+
+def test_union_default_case_uint8() -> None:
+    idl = """module test {
+  union IntOrString switch(uint8) {
+    case 0: int32 num;
+    default: string text;
+  };
+};"""
+    defs = parse_ros2idl(idl)
+    reader = MessageReader(defs)
+
+    w = CdrWriter()
+    w.uint8(1)
+    w.string("fallback")
+    buffer = w.data
+    assert reader.read_message(buffer) == {"text": "fallback"}
+
+
+def test_enum_union_default_case() -> None:
+    idl = """module test {
+  enum Switch { NUM, TEXT };
+  union IntOrString switch(Switch) {
+    case NUM: int32 num;
+    default: string text;
+  };
+};"""
+    defs = parse_ros2idl(idl)
+    reader = MessageReader(defs)
+
+    w = CdrWriter()
+    w.uint32(1)
+    w.string("enum default")
+    buffer = w.data
+    assert reader.read_message(buffer) == {"text": "enum default"}
 
 
 @pytest.mark.parametrize("msg_def", ["wstring field", "wstring[] field"])

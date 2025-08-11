@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Mapping, Sequence
 
-from message_definition import MessageDefinition, MessageDefinitionField
+from message_definition import AggregatedKind, MessageDefinition, MessageDefinitionField
 
 from cdr import CdrReader
 
@@ -22,8 +22,8 @@ class MessageReaderOptions:
 
 
 class MessageReader:
-    _root_definition: List[MessageDefinitionField]
-    _definitions: Mapping[str, List[MessageDefinitionField]]
+    _root_definition: MessageDefinition
+    _definitions: Mapping[str, MessageDefinition]
     _use_ros1_time: bool
 
     def __init__(
@@ -41,8 +41,8 @@ class MessageReader:
         )
         if root_definition is None:
             raise ValueError("MessageReader initialized with no root MessageDefinition")
-        self._root_definition = list(root_definition.definitions)
-        self._definitions = {d.name or "": list(d.definitions) for d in definitions}
+        self._root_definition = root_definition
+        self._definitions = {d.name or "": d for d in definitions}
         self._use_ros1_time = time_type == "sec,nsec"
 
     def read_message(self, buffer: bytes | bytearray | memoryview) -> Any:
@@ -50,18 +50,81 @@ class MessageReader:
         return self._read_complex_type(self._root_definition, reader)
 
     def _read_complex_type(
-        self, definition: Sequence[MessageDefinitionField], reader: CdrReader
+        self, definition: MessageDefinition, reader: CdrReader
     ) -> Dict[str, Any]:
         msg: Dict[str, Any] = {}
+        fields = definition.definitions
 
-        if not message_definition_has_data_fields(definition):
+        if not message_definition_has_data_fields(fields):
             # In case a message definition definition is empty, ROS 2 adds a
             # `uint8 structure_needs_at_least_one_member` field when converting to IDL,
             # to satisfy the requirement from IDL of not being empty.
             reader.uint8()
             return msg
 
-        for field in definition:
+        if definition.aggregatedKind == AggregatedKind.UNION:
+            deser_map = _ros1_deserializers if self._use_ros1_time else _deserializers
+            switch_deser = deser_map.get(definition.switchType or "")
+            if switch_deser is None:
+                raise ValueError(
+                    "Unrecognized primitive type "
+                    f"{definition.switchType} for union discriminant"
+                )
+            discr = switch_deser(reader)
+
+            selected: MessageDefinitionField | None = None
+            default: MessageDefinitionField | None = None
+            for field in fields:
+                if field.isConstant is True:
+                    continue
+                if field.casePredicates and discr in field.casePredicates:
+                    selected = field
+                    break
+                if field.isDefaultCase:
+                    default = field
+            if selected is None:
+                if default is None:
+                    raise ValueError(f"No union field matches discriminant {discr}")
+                selected = default
+
+            field = selected
+            if field.isComplex is True:
+                nested_definition = self._definitions.get(field.type)
+                if nested_definition is None:
+                    raise ValueError(f"Unrecognized complex type {field.type}")
+                if field.isArray is True:
+                    array_length = field.arrayLength or reader.sequence_length()
+                    array = []
+                    for _ in range(array_length):
+                        array.append(self._read_complex_type(nested_definition, reader))
+                    msg[field.name] = array
+                else:
+                    msg[field.name] = self._read_complex_type(nested_definition, reader)
+            else:
+                if field.isArray is True:
+                    deser_map = (
+                        _ros1_typed_array_deserializers
+                        if self._use_ros1_time
+                        else _typed_array_deserializers
+                    )
+                    deser = deser_map.get(field.type)
+                    if deser is None:
+                        raise ValueError(
+                            f"Unrecognized primitive array type {field.type}[]"
+                        )
+                    array_length = field.arrayLength or reader.sequence_length()
+                    msg[field.name] = deser(reader, array_length)
+                else:
+                    deser_map = (
+                        _ros1_deserializers if self._use_ros1_time else _deserializers
+                    )
+                    deser = deser_map.get(field.type)
+                    if deser is None:
+                        raise ValueError(f"Unrecognized primitive type {field.type}")
+                    msg[field.name] = deser(reader)
+            return msg
+
+        for field in fields:
             if field.isConstant is True:
                 continue
 
