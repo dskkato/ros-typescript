@@ -130,9 +130,8 @@ class MessageReader:
                     f"{definition.switchType} for union discriminant"
                 )
             discr = switch_deser(reader)
-            if self._enum_as_string and (
-                enum_map := self._union_enum_mappings.get(definition.name or "")
-            ):
+            enum_map = self._union_enum_mappings.get(definition.name or "")
+            if self._enum_as_string and enum_map:
                 msg["discriminator"] = enum_map.get(discr, discr)
             else:
                 msg["discriminator"] = discr
