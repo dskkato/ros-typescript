@@ -78,11 +78,10 @@ class MessageReader:
             if d.aggregatedKind != AggregatedKind.UNION:
                 continue
             case_values: set[int] = set()
-            for f in d.definitions:
-                if f.isConstant:
-                    continue
-                if f.casePredicates:
-                    case_values.update(f.casePredicates)
+            for c in d.cases:
+                preds = c.predicates
+                if preds:
+                    case_values.update(preds)
             prefix = (d.name or "").rsplit("/", 1)[0]
             mapping = None
             for name, enum_map in enum_defns.items():
@@ -114,7 +113,10 @@ class MessageReader:
         msg: Dict[str, Any] = {}
         fields = definition.definitions
 
-        if not message_definition_has_data_fields(fields):
+        if (
+            definition.aggregatedKind != AggregatedKind.UNION
+            and not message_definition_has_data_fields(fields)
+        ):
             # In case a message definition definition is empty, ROS 2 adds a
             # `uint8 structure_needs_at_least_one_member` field when converting to IDL,
             # to satisfy the requirement from IDL of not being empty.
@@ -136,22 +138,9 @@ class MessageReader:
             else:
                 msg["discriminator"] = discr
 
-            selected: MessageDefinitionField | None = None
-            default: MessageDefinitionField | None = None
-            for field in fields:
-                if field.isConstant is True:
-                    continue
-                if field.casePredicates and discr in field.casePredicates:
-                    selected = field
-                    break
-                if field.isDefaultCase:
-                    default = field
-            if selected is None:
-                if default is None:
-                    raise ValueError(f"No union field matches discriminant {discr}")
-                selected = default
-
-            field = selected
+            field = _union_case_field(definition, discr)
+            if field is None:
+                raise ValueError(f"No union field matches discriminant {discr}")
             if field.isComplex is True:
                 nested_definition = self._definitions.get(field.type)
                 if nested_definition is None:
@@ -236,6 +225,18 @@ class MessageReader:
 
 def _is_constant_module(defn: MessageDefinition) -> bool:
     return len(defn.definitions) > 0 and all(f.isConstant for f in defn.definitions)
+
+
+def _union_case_field(
+    defn: MessageDefinition, discriminator: Any
+) -> MessageDefinitionField | None:
+    """Return the field for ``discriminator`` from ``defn``."""
+
+    for case in defn.cases:
+        if case.predicates and discriminator in case.predicates:
+            return case.type
+
+    return defn.defaultCase
 
 
 def _read_bool_array(reader: CdrReader, count: int) -> List[bool]:
