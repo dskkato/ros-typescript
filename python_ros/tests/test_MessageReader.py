@@ -537,6 +537,64 @@ def test_enum_union_parsing() -> None:
     assert reader.read_message(buffer) == {"discriminator": 1, "text": "enum"}
 
 
+def test_enum_union_parsing_as_string() -> None:
+    idl = """module test {
+  enum Switch { NUM, TEXT };
+  union IntOrString switch(Switch) {
+    case NUM: int32 num;
+    case TEXT: string text;
+  };
+};"""
+    defs = parse_ros2idl(idl)
+    reader = MessageReader(defs, MessageReaderOptions(enumAsString=True))
+
+    w = CdrWriter()
+    w.uint32(0)
+    w.int32(99)
+    buffer = w.data
+    assert reader.read_message(buffer) == {"discriminator": "NUM", "num": 99}
+
+    w = CdrWriter()
+    w.uint32(1)
+    w.string("enum")
+    buffer = w.data
+    assert reader.read_message(buffer) == {"discriminator": "TEXT", "text": "enum"}
+
+
+def test_enum_field_as_string() -> None:
+    idl = """module test {
+  enum Switch { NUM, TEXT };
+  struct Bar { Switch mode; };
+};"""
+    defs = parse_ros2idl(idl)
+    reader = MessageReader(defs, MessageReaderOptions(enumAsString=True))
+
+    w = CdrWriter()
+    w.uint32(1)
+    buffer = w.data
+    assert reader.read_message(buffer) == {"mode": "TEXT"}
+
+
+def test_enum_array_field_as_string() -> None:
+    idl = """module test {
+  enum Switch { NUM, TEXT };
+  struct Bar { Switch mode; sequence<Switch> modes; };
+};"""
+    defs = parse_ros2idl(idl)
+    reader = MessageReader(defs, MessageReaderOptions(enumAsString=True))
+
+    w = CdrWriter()
+    w.uint32(0)
+    w.uint32(2)
+    w.uint32(1)
+    w.uint32(0)
+    buffer = w.data
+    assert reader.read_message(buffer) == {
+        "mode": "NUM",
+        "modes": ["TEXT", "NUM"],
+    }
+
+
 def test_nested_enum_union_parsing() -> None:
     idl = """module test {
   enum Switch { NUM, TEXT };
@@ -628,6 +686,44 @@ def test_nested_module_enum_union() -> None:
     buffer = w.data
     assert reader.read_message(buffer) == {
         "union_value": {"discriminator": 1, "string_value": "Hello!"}
+    }
+
+
+def test_nested_module_enum_union_as_string() -> None:
+    idl = """module test {
+  module t2_test_msgs {
+
+  enum FooEnum {
+    ENUMERATOR1,
+    ENUMERATOR2
+  };
+
+  union FooUnion switch(FooEnum) {
+  case ENUMERATOR1:
+    int32 int_value;
+  case ENUMERATOR2:
+    string<32> string_value;
+  };
+
+  module msg {
+     @verbatim (language="comment", text=
+     "This is a comment about the Bar message")
+     struct Bar {
+       FooUnion union_value;  // member is a union discriminated by FooEnum
+       };
+    };
+  };
+
+};"""
+    defs = parse_ros2idl(idl)
+    reader = MessageReader(defs, MessageReaderOptions(enumAsString=True))
+
+    w = CdrWriter()
+    w.uint32(1)
+    w.string("Hello!")
+    buffer = w.data
+    assert reader.read_message(buffer) == {
+        "union_value": {"discriminator": "ENUMERATOR2", "string_value": "Hello!"}
     }
 
 

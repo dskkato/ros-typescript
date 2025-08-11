@@ -19,12 +19,16 @@ ArrayDeserializer = Callable[[CdrReader, int], Any]
 @dataclass
 class MessageReaderOptions:
     timeType: str = "sec,nanosec"  # "sec,nanosec" or "sec,nsec"
+    enumAsString: bool = False
 
 
 class MessageReader:
     _root_definition: MessageDefinition
     _definitions: Mapping[str, MessageDefinition]
     _use_ros1_time: bool
+    _enum_as_string: bool
+    _enum_mappings: Dict[str, Dict[int, str]]
+    _union_enum_mappings: Dict[str, Dict[int, str]]
 
     def __init__(
         self,
@@ -33,6 +37,7 @@ class MessageReader:
     ) -> None:
         opts = options or MessageReaderOptions()
         time_type = opts.timeType
+        self._enum_as_string = opts.enumAsString
 
         # ros2idl modules could have constant modules before the root struct used
         # to decode message
@@ -55,9 +60,53 @@ class MessageReader:
         self._definitions = {d.name or "": d for d in definitions}
         self._use_ros1_time = time_type == "sec,nsec"
 
+        # Build enum mappings
+        enum_defns: Dict[str, Dict[int, str]] = {}
+        for d in definitions:
+            if _is_constant_module(d):
+                mapping: Dict[int, str] = {}
+                for f in d.definitions:
+                    if isinstance(f.value, int):
+                        mapping[f.value] = f.name
+                if mapping:
+                    enum_defns[d.name or ""] = mapping
+
+        self._enum_mappings = enum_defns
+
+        self._union_enum_mappings = {}
+        for d in definitions:
+            if d.aggregatedKind != AggregatedKind.UNION:
+                continue
+            case_values: set[int] = set()
+            for f in d.definitions:
+                if f.isConstant:
+                    continue
+                if f.casePredicates:
+                    case_values.update(f.casePredicates)
+            prefix = (d.name or "").rsplit("/", 1)[0]
+            mapping = None
+            for name, enum_map in enum_defns.items():
+                if prefix and not name.startswith(prefix):
+                    continue
+                if case_values.issubset(enum_map.keys()):
+                    mapping = enum_map
+                    break
+            if mapping is not None:
+                self._union_enum_mappings[d.name or ""] = mapping
+
     def read_message(self, buffer: bytes | bytearray | memoryview) -> Any:
         reader = CdrReader(buffer)
         return self._read_complex_type(self._root_definition, reader)
+
+    def _map_enum(self, value: Any, enum_type: str | None) -> Any:
+        if not (self._enum_as_string and enum_type):
+            return value
+        enum_map = self._enum_mappings.get(enum_type)
+        if enum_map is None:
+            return value
+        if isinstance(value, list):
+            return [enum_map.get(v, v) for v in value]
+        return enum_map.get(value, value)
 
     def _read_complex_type(
         self, definition: MessageDefinition, reader: CdrReader
@@ -81,7 +130,12 @@ class MessageReader:
                     f"{definition.switchType} for union discriminant"
                 )
             discr = switch_deser(reader)
-            msg["discriminator"] = discr
+            if self._enum_as_string and (
+                enum_map := self._union_enum_mappings.get(definition.name or "")
+            ):
+                msg["discriminator"] = enum_map.get(discr, discr)
+            else:
+                msg["discriminator"] = discr
 
             selected: MessageDefinitionField | None = None
             default: MessageDefinitionField | None = None
@@ -124,7 +178,8 @@ class MessageReader:
                             f"Unrecognized primitive array type {field.type}[]"
                         )
                     array_length = field.arrayLength or reader.sequence_length()
-                    msg[field.name] = deser(reader, array_length)
+                    value = deser(reader, array_length)
+                    msg[field.name] = self._map_enum(value, field.enumType)
                 else:
                     deser_map = (
                         _ros1_deserializers if self._use_ros1_time else _deserializers
@@ -132,7 +187,8 @@ class MessageReader:
                     deser = deser_map.get(field.type)
                     if deser is None:
                         raise ValueError(f"Unrecognized primitive type {field.type}")
-                    msg[field.name] = deser(reader)
+                    value = deser(reader)
+                    msg[field.name] = self._map_enum(value, field.enumType)
             return msg
 
         for field in fields:
@@ -164,7 +220,8 @@ class MessageReader:
                             f"Unrecognized primitive array type {field.type}[]"
                         )
                     array_length = field.arrayLength or reader.sequence_length()
-                    msg[field.name] = deser(reader, array_length)
+                    value = deser(reader, array_length)
+                    msg[field.name] = self._map_enum(value, field.enumType)
                 else:
                     deser_map = (
                         _ros1_deserializers if self._use_ros1_time else _deserializers
@@ -172,7 +229,8 @@ class MessageReader:
                     deser = deser_map.get(field.type)
                     if deser is None:
                         raise ValueError(f"Unrecognized primitive type {field.type}")
-                    msg[field.name] = deser(reader)
+                    value = deser(reader)
+                    msg[field.name] = self._map_enum(value, field.enumType)
 
         return msg
 
